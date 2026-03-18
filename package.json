@@ -1,0 +1,9 @@
+{
+  "name": "tripcheck",
+  "version": "1.0.0",
+  "description": "TripCheck Application",
+  "scripts": {
+    "start": "npx serve public",
+    "dev": "npx serve public"
+  }
+}
