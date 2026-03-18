@@ -366,7 +366,10 @@ function initializeGlobalEventListeners() {
         if (activityButton) {
             const activity = FirestoreService.getActivityById(activityButton.dataset.activityId);
             if (activity) {
-                if (activity.status === 'active') {
+                if (target.closest('#archive-list')) {
+                    navigateTo('activity-history-page');
+                    FirestoreService.loadActivityHistory(activity);
+                } else if (activity.status === 'active') {
                     await showAttendancePage(activity);
                 } else {
                     navigateTo('activity-history-page');
@@ -499,19 +502,8 @@ function initializeGlobalEventListeners() {
         const closeModalButton = target.closest('#close-modal-button');
         if (closeModalButton) {
             const modal = document.getElementById('summary-modal');
-            const wasArchived = modal.dataset.wasArchived === 'true';
             modal.classList.add('hidden');
-            if (wasArchived) {
-                navigateTo('home-page');
-            } else {
-                const activityId = appState.currentActivityId;
-                const activity = FirestoreService.getActivityById(activityId);
-                if (activity) {
-                    await showAttendancePage(activity);
-                } else {
-                    navigateTo('home-page');
-                }
-            }
+            navigateTo('home-page');
             return;
         }
 

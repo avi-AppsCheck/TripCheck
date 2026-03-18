@@ -57,7 +57,8 @@ export const FirestoreService = {
 
     renderActivities() {
         const activeActivities = this._allActivities.filter(act => act.status === 'active').sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-        const archivedActivities = this._allActivities.filter(act => act.status !== 'active').sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        // Remove the filter so ALL activities (active + archived) are displayed in the archive list. That way, users can easily access history of active activities.
+        const archivedActivities = this._allActivities.map(act => act).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
         const bannerContainer = document.getElementById('active-activity-banner');
         if (bannerContainer) {
@@ -102,7 +103,8 @@ export const FirestoreService = {
                     card.dataset.activityId = activity.id;
                     const date = activity.createdAt ? new Date(activity.createdAt.seconds * 1000).toLocaleDateString('he-IL') : 'לא זמין';
                     const groupsText = activity.groups?.join(', ') || 'אין קבוצות משויכות';
-                    card.innerHTML = `<h2 class="text-xl font-bold text-gray-900 pointer-events-none">${activity.name}</h2><div class="mt-4 flex items-center text-gray-500 text-sm pointer-events-none"><i class="ph ph-calendar text-lg ml-2"></i><span>נוצר ב: ${date}</span></div><div class="mt-2 flex items-center text-gray-500 text-sm pointer-events-none"><i class="ph ph-users-three text-lg ml-2"></i><span>קבוצות: ${groupsText}</span></div>`;
+                    let statusBadge = activity.status === 'active' ? '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded inline-block mb-2">פעיל עכשיו</span>' : '';
+                    card.innerHTML = `${statusBadge}<h2 class="text-xl font-bold text-gray-900 pointer-events-none">${activity.name}</h2><div class="mt-2 flex items-center text-gray-500 text-sm pointer-events-none"><i class="ph ph-calendar text-lg ml-2"></i><span>נוצר ב: ${date}</span></div><div class="mt-2 flex items-center text-gray-500 text-sm pointer-events-none"><i class="ph ph-users-three text-lg ml-2"></i><span>קבוצות: ${groupsText}</span></div>`;
                     archiveListElement.appendChild(card);
                 });
             }
@@ -344,7 +346,7 @@ export const FirestoreService = {
 
         if (check.present && check.present.length > 0) {
             report += `*נוכחים (${check.present.length}):*\n`;
-            check.present.forEach(p => report += `- ${p.name} (${p.group})\n`);
+            check.present.forEach(p => report += `- ${p.name} (${p.groupName || p.group || 'ללא קבוצה'})\n`);
             report += `\n`;
         } else {
             report += `*אין נוכחים*\n\n`;
@@ -352,7 +354,7 @@ export const FirestoreService = {
 
         if (check.absent && check.absent.length > 0) {
             report += `*חסרים (${check.absent.length}):*\n`;
-            check.absent.forEach(a => report += `- ${a.name} (${a.group})\n`);
+            check.absent.forEach(a => report += `- ${a.name} (${a.groupName || a.group || 'ללא קבוצה'})\n`);
             report += `\n`;
         } else {
             report += `*אין חסרים*\n\n`;
@@ -366,8 +368,8 @@ export const FirestoreService = {
         const dateStr = date.toLocaleDateString('he-IL');
         const timeStr = date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
 
-        const presentList = check.present && check.present.length ? check.present.map(s => `<li>${s.name} (${s.group})</li>`).join('') : '<li>אין נתונים</li>';
-        const absentList = check.absent && check.absent.length ? check.absent.map(s => `<li>${s.name} (${s.group})</li>`).join('') : '<li>אין נתונים</li>';
+        const presentList = check.present && check.present.length ? check.present.map(s => `<li>${s.name} (${s.groupName || s.group || ''})</li>`).join('') : '<li>אין נתונים</li>';
+        const absentList = check.absent && check.absent.length ? check.absent.map(s => `<li>${s.name} (${s.groupName || s.group || ''})</li>`).join('') : '<li>אין נתונים</li>';
 
         const element = document.createElement('div');
         element.innerHTML = `
@@ -512,8 +514,8 @@ export const FirestoreService = {
                     </div>
                 `;
 
-                const presentList = check.present && check.present.length ? check.present.map(s => `<li>${s.name} (${s.group})</li>`).join('') : '<li>אין נתונים</li>';
-                const absentList = check.absent && check.absent.length ? check.absent.map(s => `<li>${s.name} (${s.group})</li>`).join('') : '<li>אין נתונים</li>';
+                const presentList = check.present && check.present.length ? check.present.map(s => `<li>${s.name} (${s.groupName || s.group || ''})</li>`).join('') : '<li>אין נתונים</li>';
+                const absentList = check.absent && check.absent.length ? check.absent.map(s => `<li>${s.name} (${s.groupName || s.group || ''})</li>`).join('') : '<li>אין נתונים</li>';
 
                 const contentHtml = `
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
