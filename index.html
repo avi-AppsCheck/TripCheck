@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TripCheck - אב טיפוס</title>
+    <!-- שימוש ב-Tailwind CSS לעיצוב מהיר ומודרני -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- שימוש בספריית אייקונים Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Firebase SDKs -->
+    <script type="module">
+        // ייבוא הפונקציות הנדרשות מה-SDK של Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        // ======================================================
+        //   תצורת ה-Firebase שלך
+        // ======================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDAbOiTIQB6FFpFA7ULaN4ZfjqKF_IL7P0",
+            authDomain: "tripcheck-avielk.firebaseapp.com",
+            projectId: "tripcheck-avielk",
+            storageBucket: "tripcheck-avielk.firebasestorage.app",
+            messagingSenderId: "1067609414447",
+            appId: "1:1067609414447:web:2a7dd6a1cc95d10b781fda",
+            measurementId: "G-VYZS79JSE6"
+        };
+        // ======================================================
+
+        // --- אתחול Firebase ---
+        console.log("Initializing Firebase with corrected config...");
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+        console.log("Firebase initialized.");
+
+        // --- DOM Elements ---
+        const loginPage = document.getElementById('login-page');
+        const mainApp = document.getElementById('main-app');
+        const userDisplayName = document.getElementById('user-display-name');
+        const userPhoto = document.getElementById('user-photo');
+        const loginButton = document.getElementById('login-button');
+        const logoutButton = document.getElementById('logout-button');
+
+        // --- ניהול מצב הזדהות ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                console.log("Auth state changed: User is signed in.", user.displayName);
+                loginPage.classList.add('hidden');
+                mainApp.classList.remove('hidden');
+                userDisplayName.textContent = user.displayName;
+                userPhoto.src = user.photoURL;
+                console.log("Calling initializeAppLogic...");
+                initializeAppLogic();
+            } else {
+                console.log("Auth state changed: User is signed out.");
+                loginPage.classList.remove('hidden');
+                mainApp.classList.add('hidden');
+            }
+        });
+
+        // --- פונקציות התחברות והתנתקות ---
+        loginButton.addEventListener('click', () => {
+            console.log("Login button clicked. Starting sign-in with POPUP...");
+            signInWithPopup(auth, provider).catch((error) => {
+                console.error("Error during sign-in:", error);
+                alert(`אירעה שגיאה במהלך ההתחברות: ${error.code}\n\nהבעיה היא ככל הנראה זיכרון מטמון. אנא פעל לפי ההוראות בראש קוד האפליקציה.`);
+            });
+        });
+
+        logoutButton.addEventListener('click', () => {
+            signOut(auth).catch((error) => console.error("Error during sign-out:", error));
+        });
+
+        // --- לוגיקת האפליקציה הראשית ---
+        function initializeAppLogic() {
+            console.log("initializeAppLogic started.");
+            const pages = document.querySelectorAll('.page');
+            const navButtons = document.querySelectorAll('.nav-btn');
+
+            function showPage(pageId) {
+                console.log(`Attempting to show page: ${pageId}`);
+                pages.forEach(page => page.classList.toggle('hidden', page.id !== pageId));
+                window.scrollTo(0, 0);
+            }
+
+            navButtons.forEach(btn => {
+                btn.addEventListener('click', () => showPage(btn.dataset.target));
+            });
+
+            console.log("Setting default page to 'home-page'.");
+            showPage('home-page');
+
+            const activeActivity = { id: 1, name: 'טיול שנתי לירושלים', groups: ['כיתה ח\'1', 'כיתה ח\'2'] };
+            const bannerContainer = document.getElementById('active-activity-banner');
+            if (activeActivity && bannerContainer.innerHTML === '') {
+                const banner = document.createElement('div');
+                banner.className = "nav-btn bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-2xl shadow-2xl p-5 cursor-pointer hover:shadow-emerald-400/50 transition-shadow";
+                banner.dataset.target = "attendance-page";
+                banner.innerHTML = `<div class="flex justify-between items-center mb-2"><h3 class="font-bold text-lg">פעילות נוכחית</h3><span class="bg-white/30 text-xs font-semibold px-3 py-1 rounded-full">יום 2 מתוך 3</span></div><p class="text-2xl font-bold">${activeActivity.name}</p><div class="mt-3 text-sm opacity-90 flex justify-between items-center"><span>${activeActivity.groups.join(', ')}</span><div class="flex items-center"><span>לניהול הפעילות</span><i class="ph ph-caret-left text-lg mr-1"></i></div></div>`;
+                banner.addEventListener('click', () => showPage(banner.dataset.target));
+                bannerContainer.appendChild(banner);
+            }
+
+            initializeAttendancePage();
+            initializeNewActivityPage();
+            initializeArchivePage();
+            console.log("App logic fully initialized.");
+        }
+
+        // --- Gemini API ---
+        async function callGemini(prompt, isJson = false) {
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            
+            let payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }]
+            };
+
+            if (isJson) {
+                payload.generationConfig = {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            items: {
+                                type: "ARRAY",
+                                items: { type: "STRING" }
+                            }
+                        }
+                    }
+                };
+            }
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    return isJson ? JSON.parse(text) : text;
+                } else {
+                    throw new Error("Invalid response structure from Gemini API");
+                }
+            } catch (error) {
+                console.error("Gemini API call failed:", error);
+                return null;
+            }
+        }
+
+        function showGeminiModal(title, content) {
+            document.getElementById('gemini-modal-title').textContent = title;
+            document.getElementById('gemini-modal-content').innerHTML = content;
+            document.getElementById('gemini-modal').classList.remove('hidden');
+            document.getElementById('gemini-modal').classList.add('flex');
+        }
+
+        // --- Pages Logic ---
+        function initializeAttendancePage() {
+            const students = [{ id: 1, name: 'אבי כהן' }, { id: 2, name: 'בני לוי' }, { id: 3, name: 'גילה חן' }, { id: 4, name: 'דנה שחר' }, { id: 5, name: 'הדס פרידמן' }, { id: 6, name: 'ויקטור גולן' }, { id: 7, name: 'זאב רוזן' }, { id: 8, name: 'חנה אביבי' }, { id: 9, name: 'טל שמש' }, { id: 10, 'name': 'יעל ישראלי' }];
+            const studentListElement = document.getElementById('student-list');
+            if (studentListElement.innerHTML !== '') return;
+
+            const generateBriefingBtn = document.getElementById('generate-briefing-btn');
+            generateBriefingBtn.addEventListener('click', async () => {
+                const activityName = document.getElementById('attendance-activity-title').textContent;
+                const prompt = `כתוב תדריך בוקר קצר, קליל ומעורר השראה (עד 70 מילים) עבור טיול בית ספר בשם "${activityName}". פנה לתלמידים והזכר להם לשמור על עצמם וליהנות.`;
+                
+                generateBriefingBtn.disabled = true;
+                generateBriefingBtn.innerHTML = `<i class="ph-fill ph-spinner animate-spin text-2xl"></i>`;
+
+                const briefing = await callGemini(prompt);
+                
+                generateBriefingBtn.disabled = false;
+                generateBriefingBtn.innerHTML = `<i class="ph-fill ph-sparkle text-2xl"></i>`;
+
+                if (briefing) {
+                    showGeminiModal('תדריך בוקר', `<p class="whitespace-pre-wrap text-lg leading-relaxed">${briefing}</p>`);
+                } else {
+                    alert('לא הצלחנו ליצור תדריך. נסה שוב מאוחר יותר.');
+                }
+            });
+
+            const counterElement = document.getElementById('attendance-counter');
+            let presentCount = 0;
+            const totalStudents = students.length;
+            
+            function updateCounter() {
+                counterElement.textContent = `${presentCount} / ${totalStudents}`;
+                counterElement.className = `text-6xl font-bold transition-colors duration-300 ${presentCount === totalStudents ? 'text-green-500' : 'text-red-600'}`;
+            }
+
+            students.forEach(student => {
+                const li = document.createElement('li');
+                li.dataset.studentName = student.name;
+                li.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg shadow-sm cursor-pointer transition-all duration-200 ease-in-out border-2 border-transparent';
+                li.innerHTML = `<span class="font-medium text-gray-800">${student.name}</span><i class="ph ph-circle text-2xl text-gray-300"></i>`;
+                li.addEventListener('click', () => {
+                    li.classList.toggle('present');
+                    const icon = li.querySelector('i');
+                    if (li.classList.contains('present')) {
+                        li.classList.replace('bg-gray-50', 'bg-green-100');
+                        li.classList.add('border-green-500');
+                        icon.className = 'ph-fill ph-check-circle text-2xl text-green-600';
+                        presentCount++;
+                    } else {
+                        li.classList.replace('bg-green-100', 'bg-gray-50');
+                        li.classList.remove('border-green-500');
+                        icon.className = 'ph ph-circle text-2xl text-gray-300';
+                        presentCount--;
+                    }
+                    updateCounter();
+                });
+                studentListElement.appendChild(li);
+            });
+            updateCounter();
+
+            const modal = document.getElementById('summary-modal');
+            document.getElementById('finish-button').addEventListener('click', () => {
+                const presentStudents = [], absentStudents = [];
+                studentListElement.querySelectorAll('li').forEach(li => (li.classList.contains('present') ? presentStudents : absentStudents).push(li.dataset.studentName));
+                document.getElementById('summary-content').innerHTML = `<p class="text-lg"><span class="font-bold text-green-600">${presentStudents.length}</span> נוכחים, <span class="font-bold text-red-600">${absentStudents.length}</span> חסרים</p>`;
+                document.getElementById('absent-list-container').innerHTML = `<h3 class="font-bold text-red-600 text-lg mb-2 ${absentStudents.length === 0 ? 'hidden' : ''}">חסרים:</h3><ul class="list-disc list-inside text-red-700">${absentStudents.map(name => `<li>${name}</li>`).join('')}</ul>`;
+                document.getElementById('present-list-container').innerHTML = `<h3 class="font-bold text-green-600 text-lg mt-4 mb-2">נוכחים:</h3><ul class="list-disc list-inside text-gray-800">${presentStudents.map(name => `<li>${name}</li>`).join('')}</ul>`;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            });
+            document.getElementById('close-modal-button').addEventListener('click', () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            });
+        }
+
+        function initializeNewActivityPage() {
+            const allGroups = ["כיתה ח'1", "כיתה ח'2", "כיתה ט'1", "כיתה ט'2", "מגמת מדעים", "נבחרת כדורסל"];
+            const groupsSelectionElement = document.getElementById('groups-selection');
+            if (groupsSelectionElement.innerHTML !== '') return;
+            allGroups.forEach(group => {
+                groupsSelectionElement.innerHTML += `<label class="flex items-center p-3 bg-gray-50 rounded-lg"><input type="checkbox" class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ml-3"><span class="text-gray-900">${group}</span></label>`;
+            });
+
+            const generateChecklistBtn = document.getElementById('generate-checklist-btn');
+            const checklistContainer = document.getElementById('checklist-container');
+            
+            generateChecklistBtn.addEventListener('click', async () => {
+                const activityName = document.getElementById('activity-name').value;
+                if (!activityName) {
+                    alert('יש להזין שם פעילות תחילה.');
+                    return;
+                }
+                const prompt = `צור רשימת ציוד מומלצת עבור טיול בית ספר בשם "${activityName}".`;
+                
+                generateChecklistBtn.disabled = true;
+                generateChecklistBtn.innerHTML = `<i class="ph-fill ph-spinner animate-spin"></i> הצעות בדרך...`;
+
+                const result = await callGemini(prompt, true);
+                
+                generateChecklistBtn.disabled = false;
+                generateChecklistBtn.innerHTML = `<i class="ph-fill ph-sparkle ml-2"></i>הצע לי רשימת ציוד`;
+                
+                if (result && result.items) {
+                    checklistContainer.innerHTML = '<h3 class="text-lg font-semibold mb-2 text-gray-800">רשימת ציוד מוצעת:</h3><ul class="list-disc list-inside space-y-2"></ul>';
+                    const ul = checklistContainer.querySelector('ul');
+                    result.items.forEach(item => {
+                        const li = document.createElement('li');
+                        li.textContent = item;
+                        li.className = "text-gray-700";
+                        ul.appendChild(li);
+                    });
+                } else {
+                    alert('לא הצלחנו ליצור רשימת ציוד. נסה שוב מאוחר יותר.');
+                }
+            });
+        }
+
+        function initializeArchivePage() {
+            const pastActivities = [{ name: 'יום ספורט בית ספרי', date: '28.06.2025', groups: ['כלל בית הספר'] }, { name: 'סיור במוזיאון המדע', date: '11.05.2025', groups: ['מגמת מדעים'] }, { name: 'הקפות בשדה', date: '01.04.2025', groups: ['שכבת י\''] }];
+            const archiveListElement = document.getElementById('archive-list');
+            if (archiveListElement.innerHTML !== '') return;
+            pastActivities.forEach(activity => {
+                archiveListElement.innerHTML += `<div class="bg-white rounded-2xl shadow-md p-5"><h2 class="text-xl font-bold text-gray-900">${activity.name}</h2><div class="mt-4 flex items-center text-gray-500 text-sm"><i class="ph ph-calendar text-lg ml-2"></i><span>${activity.date}</span></div><div class="mt-2 flex items-center text-gray-500 text-sm"><i class="ph ph-users-three text-lg ml-2"></i><span>${activity.groups.join(', ')}</span></div></div>`;
+            });
+        }
+        
+        document.getElementById('close-gemini-modal-button').addEventListener('click', () => {
+            document.getElementById('gemini-modal').classList.add('hidden');
+            document.getElementById('gemini-modal').classList.remove('flex');
+        });
+
+    </script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+    <!-- ======================================= -->
+    <!--           מסך התחברות                  -->
+    <!-- ======================================= -->
+    <div id="login-page" class="container mx-auto max-w-lg min-h-screen flex flex-col items-center justify-center p-4">
+        <div class="text-center">
+            <img src="https://i.imgur.com/QRSzLuT.png" alt="TripCheck Logo" class="w-72 h-72 mx-auto mb-2"/>
+            <h1 class="text-5xl font-bold text-gray-800">TripCheck</h1>
+            <p class="text-gray-500 mt-2 mb-8">ניהול נוכחות בשטח בקלות</p>
+            <button id="login-button" class="bg-white text-gray-700 font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center mx-auto border">
+                <svg class="w-6 h-6 mr-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.519-3.486-11.189-8.188l-6.571,4.819C9.656,39.663,16.318,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C42.022,35.638,44,30.138,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
+                התחבר עם חשבון גוגל
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================================= -->
+    <!--           האפליקציה הראשית              -->
+    <!-- ======================================= -->
+    <div id="main-app" class="hidden">
+        <div class="container mx-auto max-w-lg">
+
+            <!-- מסך הבית (עמוד 1) -->
+            <div id="home-page" class="page">
+                <div class="min-h-screen flex flex-col">
+                    <header class="p-4 flex justify-between items-center border-b">
+                        <div class="flex items-center">
+                            <img id="user-photo" src="" alt="User Photo" class="w-10 h-10 rounded-full ml-3">
+                            <div>
+                                <span class="text-sm text-gray-500">שלום,</span>
+                                <p id="user-display-name" class="font-bold text-gray-800"></p>
+                            </div>
+                        </div>
+                        <button id="logout-button" class="text-gray-500 hover:text-red-500"><i class="ph-bold ph-sign-out text-2xl"></i></button>
+                    </header>
+                    <main class="flex-grow flex flex-col justify-center p-4 space-y-5">
+                        <button data-target="new-activity-page" class="nav-btn bg-blue-600 text-white rounded-2xl p-8 shadow-lg hover:bg-blue-700 transition-all duration-300 transform hover:-translate-y-1">
+                            <div class="flex items-center justify-center"><i class="ph-fill ph-plus-circle text-4xl ml-4"></i><span class="text-2xl font-semibold">פעילות חדשה</span></div>
+                        </button>
+                        <button data-target="archive-page" class="nav-btn bg-white text-gray-700 rounded-2xl p-8 shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border">
+                            <div class="flex items-center justify-center"><i class="ph-fill ph-archive text-4xl ml-4"></i><span class="text-2xl font-semibold">ארכיון פעילויות</span></div>
+                        </button>
+                    </main>
+                    <footer id="active-activity-banner" class="p-4"></footer>
+                </div>
+            </div>
+
+            <!-- מסך בדיקת נוכחות (עמוד 2) -->
+            <div id="attendance-page" class="page hidden">
+                 <div class="min-h-screen flex flex-col">
+                    <header class="sticky top-0 bg-gray-100/95 backdrop-blur-sm z-10 pt-4 px-4">
+                        <div class="relative text-center py-4">
+                            <button data-target="home-page" class="nav-btn absolute right-2 top-1/2 -translate-y-1/2 bg-gray-200 p-2 rounded-full hover:bg-gray-300 transition"><i class="ph ph-caret-right text-2xl"></i></button>
+                            <h1 id="attendance-activity-title" class="text-2xl font-bold text-gray-800">טיול שנתי לירושלים</h1>
+                            <button id="generate-briefing-btn" title="הפקת תדריך בוקר" class="absolute left-2 top-1/2 -translate-y-1/2 bg-yellow-400 text-yellow-900 p-2 rounded-full hover:bg-yellow-500 transition">
+                                <i class="ph-fill ph-sparkle text-2xl"></i>
+                            </button>
+                        </div>
+                        <div class="text-center pb-4">
+                            <p class="text-gray-600 font-medium">נוכחים</p>
+                            <div id="attendance-counter" class="text-6xl font-bold transition-colors duration-300">0 / 10</div>
+                        </div>
+                    </header>
+                    <main class="bg-white rounded-t-2xl shadow-lg flex-grow flex flex-col p-6">
+                        <div class="mb-6"><label for="check-name" class="block text-sm font-medium text-gray-700">שם הבדיקה (אופציונלי)</label><input type="text" id="check-name" class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm" placeholder="לדוגמה: עלייה לאוטובוס"></div>
+                        <div class="flex-grow overflow-y-auto pr-2"><ul id="student-list" class="space-y-3"></ul></div>
+                        <div class="mt-6"><button id="finish-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md">סיום וסיכום</button></div>
+                    </main>
+                </div>
+            </div>
+
+            <!-- מסך פעילות חדשה (עמוד 3) -->
+            <div id="new-activity-page" class="page hidden">
+                <div class="min-h-screen flex flex-col bg-white">
+                    <header class="p-4 flex items-center justify-between border-b">
+                         <h1 class="text-2xl font-bold text-gray-800">יצירת פעילות חדשה</h1>
+                         <button data-target="home-page" class="nav-btn text-gray-500 hover:text-gray-800"><i class="ph-bold ph-x text-2xl"></i></button>
+                    </header>
+                    <main class="flex-grow p-6 space-y-6">
+                        <div>
+                            <label for="activity-name" class="block text-sm font-medium text-gray-700">שם הפעילות</label>
+                            <input type="text" id="activity-name" class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm" placeholder="לדוגמה: טיול שנתי לגליל">
+                        </div>
+                        <button id="generate-checklist-btn" class="w-full flex items-center justify-center bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold py-2 px-4 rounded-lg shadow-md transition-all">
+                            <i class="ph-fill ph-sparkle ml-2"></i>
+                            הצע לי רשימת ציוד
+                        </button>
+                        <div id="checklist-container" class="p-4 bg-gray-50 rounded-lg">
+                            <!-- Checklist will be generated here -->
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">שייך קבוצות</label>
+                            <div id="groups-selection" class="mt-2 space-y-2"></div>
+                        </div>
+                    </main>
+                    <footer class="p-4 border-t bg-white">
+                        <button data-target="home-page" class="nav-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md">שמירה ויצירת פעילות</button>
+                    </footer>
+                </div>
+            </div>
+            
+            <!-- מסך ארכיון (עמוד 4) -->
+            <div id="archive-page" class="page hidden">
+                <div class="min-h-screen flex flex-col">
+                    <header class="sticky top-0 bg-white/95 backdrop-blur-sm z-10 p-4 flex items-center border-b">
+                         <button data-target="home-page" class="nav-btn text-gray-500 hover:text-gray-800 ml-4"><i class="ph-bold ph-arrow-right text-2xl"></i></button>
+                         <h1 class="text-2xl font-bold text-gray-800">ארכיון פעילויות</h1>
+                    </header>
+                    <main class="flex-grow p-4 pt-6"><div id="archive-list" class="space-y-4"></div></main>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for summary -->
+    <div id="summary-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-auto p-6 flex flex-col">
+            <h2 class="text-2xl font-bold text-center mb-4">סיכום הבדיקה</h2>
+            <div id="summary-content" class="text-center mb-6"></div>
+            <div class="flex-grow overflow-y-auto max-h-64 mb-4 pr-2">
+                <div id="absent-list-container"></div><div id="present-list-container"></div>
+            </div>
+            <button id="close-modal-button" class="mt-auto bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg">סגור</button>
+        </div>
+    </div>
+    
+    <!-- Modal for Gemini content -->
+    <div id="gemini-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-auto p-6 flex flex-col">
+            <h2 id="gemini-modal-title" class="text-2xl font-bold text-center mb-4 text-yellow-900"></h2>
+            <div id="gemini-modal-content" class="text-center mb-6 text-gray-700"></div>
+            <button id="close-gemini-modal-button" class="mt-auto bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg">מצוין, סגור</button>
+        </div>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,33 @@
+/************************
+* style.css v1.1
+* - Fix: Corrected modal vertical alignment.
+* - Switched from 'display: flex' to 'display: grid' with 'place-items: center' 
+* for more robust and reliable centering of modal pop-ups.
+************************/
+
+body { 
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'; 
+}
+
+#attendance-list.hide-present-mode li.present {
+    display: none;
+}
+
+.modal-container {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 50;
+    display: grid; /* Changed from flex */
+    place-items: center; /* Replaces align-items and justify-content for robust centering */
+    padding: 1rem;
+}
+
+.drag-handle {
+    cursor: grab;
+}
+
+.sortable-ghost {
+    opacity: 0.4;
+    background-color: #cce7ff;
+}
