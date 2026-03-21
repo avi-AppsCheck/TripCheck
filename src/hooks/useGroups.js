@@ -17,7 +17,7 @@ export function useGroups() {
 
     const q = query(
       collection(db, "groups"), 
-      where("createdBy", "==", currentUser.uid)
+      where("semelMosad", "==", currentUser.semelMosad)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {

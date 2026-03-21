@@ -17,7 +17,7 @@ export function useActivities() {
 
     const q = query(
       collection(db, "activities"), 
-      where("createdBy", "==", currentUser.uid)
+      where("semelMosad", "==", currentUser.semelMosad)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {

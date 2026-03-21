@@ -78,6 +78,7 @@ export default function NewActivity() {
       
       batch.set(newActivityRef, {
         name: activityName.trim(),
+        semelMosad: currentUser.semelMosad,
         groups: groupNames.length > 0 ? groupNames : ['מותאם אישית'],
         participants: participantList,
         createdBy: currentUser.uid,

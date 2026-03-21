@@ -25,6 +25,7 @@ export default function ManageGroups() {
     try {
       await addDoc(collection(db, "groups"), { 
         name: newGroupName.trim(), 
+        semelMosad: currentUser.semelMosad,
         createdBy: currentUser.uid,
         order: groups.length
       });

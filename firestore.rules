@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      // Retrieves the custom user document for the requesting user
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserData().role == 'SuperAdmin';
+    }
+    
+    function isSchoolMember(semelMosad) {
+      return isAuthenticated() && getUserData().semelMosad == semelMosad;
+    }
+
+    function isSchoolAdmin(semelMosad) {
+      return isSchoolMember(semelMosad) && getUserData().role == 'SchoolAdmin';
+    }
+
+    // 1. Users Collection
+    match /users/{userId} {
+      // Users can read their own profile, or SuperAdmins can read all
+      allow read: if isSuperAdmin() || request.auth.uid == userId;
+      // Only SuperAdmins can write to the users collection (prevents role escalation)
+      allow write: if isSuperAdmin();
+    }
+
+    // 2. Activities Collection
+    match /activities/{activityId} {
+      // Any member of the school can read the school's activities
+      allow read: if isSuperAdmin() || isSchoolMember(resource.data.semelMosad);
+      
+      // Teachers and Admins can create activities, but they MUST assign their own school
+      allow create: if isSuperAdmin() || 
+                    (isSchoolMember(request.resource.data.semelMosad) && 
+                     getUserData().role in ['SchoolAdmin', 'Teacher']);
+                     
+      // Only School Admins or the original creator can edit/archive activities
+      allow update, delete: if isSuperAdmin() || 
+                           (isSchoolMember(resource.data.semelMosad) && 
+                            (isSchoolAdmin(resource.data.semelMosad) || resource.data.createdBy == request.auth.uid));
+                            
+      // Nested Checks Collection
+      match /checks/{checkId} {
+         // Inherit school membership from the parent activity document
+         function getParentActivity() {
+           return get(/databases/$(database)/documents/activities/$(activityId)).data;
+         }
+         allow read, write: if isSuperAdmin() || isSchoolMember(getParentActivity().semelMosad);
+      }
+    }
+
+    // 3. Groups Collection
+    match /groups/{groupId} {
+      allow read: if isSuperAdmin() || isSchoolMember(resource.data.semelMosad);
+      // Let's assume Teachers can also create groups for now, but restricts to their school
+      allow write: if isSuperAdmin() || isSchoolMember(request.resource.data.semelMosad);
+      
+      // Nested Students Collection
+      match /students/{studentId} {
+        function getParentGroup() {
+           return get(/databases/$(database)/documents/groups/$(groupId)).data;
+        }
+        allow read, write: if isSuperAdmin() || isSchoolMember(getParentGroup().semelMosad);
+      }
+    }
+  }
+}

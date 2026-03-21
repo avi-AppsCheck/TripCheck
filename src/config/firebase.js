@@ -3,12 +3,12 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDAbOiTIQB6FFpFA7ULaN4ZfjqKF_IL7P0",
-    authDomain: "tripcheck-avielk.firebaseapp.com",
-    projectId: "tripcheck-avielk",
-    storageBucket: "tripcheck-avielk.appspot.com",
-    messagingSenderId: "1067609414447",
-    appId: "1:1067609414447:web:2a7dd6a1cc95d10b781fda"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);

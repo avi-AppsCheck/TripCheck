@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { auth, provider } from '../config/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, provider, db } from '../config/firebase';
 
 const AuthContext = createContext();
 
@@ -13,8 +14,34 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, user => {
-      setCurrentUser(user);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          const userSnap = await getDoc(userRef);
+          
+          let userData;
+          if (userSnap.exists()) {
+            userData = userSnap.data();
+          } else {
+            userData = {
+              email: user.email,
+              name: user.displayName || 'משתמש חדש',
+              role: 'Teacher',
+              semelMosad: '999999', // Default/Placeholder organization
+              createdAt: new Date()
+            };
+            await setDoc(userRef, userData);
+          }
+          
+          setCurrentUser({ ...user, ...userData });
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+          setCurrentUser(user);
+        }
+      } else {
+        setCurrentUser(null);
+      }
       setLoading(false);
     });
 
